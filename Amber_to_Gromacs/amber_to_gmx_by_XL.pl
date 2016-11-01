@@ -118,7 +118,7 @@
    $string =~ s/^<FLAG>//;
 #  split the string 
    my @array = split "<FLAG>",$string;
-
+#  remove spaces in the keys
    for my $i (0 .. @array-1)
    {
       if ($i % 2 == 0)
@@ -126,7 +126,6 @@
          $array[$i] =~ s/\s+//g;
       }
    }
-
 #  change the array into hash
    my %hash = @array;
 
@@ -270,8 +269,6 @@
 
    printf "Reading bonds ...\n";
 
-   my $ibond;
-
 #  BOND_FORCE_CONSTANT (5E16.8)
    $_ = $hash{"BOND_FORCE_CONSTANT"};
    my @RK = split_by_width($_, 16);
@@ -293,7 +290,7 @@
 
    my @IBH; my @JBH; my @ICBH;
 
-   for $ibond (1..$NBONH)
+   for my $ibond (1..$NBONH)
    {
       $IBH[$ibond]  = $_[($ibond-1)*3+1];
       $JBH[$ibond]  = $_[($ibond-1)*3+2];
@@ -309,7 +306,7 @@
 
    my @IB; my @JB; my @ICB;
 
-   for $ibond (1..$NBONA)
+   for my $ibond (1..$NBONA)
    {
       $IB[$ibond]  = $_[($ibond-1)*3+1];
       $JB[$ibond]  = $_[($ibond-1)*3+2];
@@ -322,8 +319,6 @@
 #*********************************************************
 
    printf "Reading angles ...\n";
-
-   my $iang;
 
 #  ANGLE_FORCE_CONSTANT (5E16.8)
    $_ = $hash{"ANGLE_FORCE_CONSTANT"};
@@ -346,7 +341,7 @@
 
    my @ITH; my @JTH; my @KTH; my @ICTH;
 
-   for $iang (1..$NTHETH)
+   for my $iang (1..$NTHETH)
    {
       $ITH[$iang]  = $_[($iang-1)*4+1];
       $JTH[$iang]  = $_[($iang-1)*4+2];
@@ -363,7 +358,7 @@
 
    my @IT; my @JT; my @KT; my @ICT;
 
-   for $iang (1..$NTHETA)
+   for my $iang (1..$NTHETA)
    {
       $IT[$iang]  = $_[($iang-1)*4+1];
       $JT[$iang]  = $_[($iang-1)*4+2];
@@ -380,8 +375,6 @@
 
    printf "Reading dihedrals ...\n";
    printf "\n";
-
-   my $idih;
 
 #  DIHEDRAL_FORCE_CONSTANT (5E16.8)
    $_ = $hash{"DIHEDRAL_FORCE_CONSTANT"};
@@ -410,7 +403,7 @@
 
    my @IPH; my @JPH; my @KPH; my @LPH; my @ICPH;
 
-   for $idih (1..$NPHIH)
+   for my $idih (1..$NPHIH)
    {
       $IPH[$idih]  = $_[($idih-1)*5+1];
       $JPH[$idih]  = $_[($idih-1)*5+2];
@@ -428,7 +421,7 @@
 
    my @IP; my @JP; my @KP; my @LP; my @ICP;
 
-   for $idih (1..$NPHIA)
+   for my $idih (1..$NPHIA)
    {
       $IP[$idih]  = $_[($idih-1)*5+1];
       $JP[$idih]  = $_[($idih-1)*5+2];
@@ -470,11 +463,10 @@
 #  epsilon = BCOEF**2 / ( 4.0 * ACOEF ) ;
 #  remember to change unit: angstrom->nm, kcal/mol->kJ/mol
 
-   my $i; my $itype; 
    my $acoef; my $bcoef;
    my @sigma; my @epsilon;
 
-   for $i (1..$NATOM)
+   for my $i (1..$NATOM)
    {
       die "Error: negative value of ICO for atom $i !\n"
          if ( $ICO[$NTYPES*($IAC[$i]-1)+$IAC[$i]] < 0.0 );
@@ -499,18 +491,18 @@
    }
 
    my %atomtype;
-   for $i (1..$NATOM)
+   for my $i (1..$NATOM)
    {
       $atomtype{$ISYMBL[$i]} = 0;
    }
    printf GTOP "[ atomtypes ]\n";
    printf GTOP "%-8s%-10s%-10s%-10s%-7s%15s%15s\n",
       ";name", "bond_type", "mass", "charge", "ptype", "sigma", "epsilon";
-   for $i (1..$NATOM)
+   for my $i (1..$NATOM)
    {
       if ($atomtype{$ISYMBL[$i]}==0)
       {
-         for $itype (1..$NTYPES)
+         for my $itype (1..$NTYPES)
          {
             if ( $IAC[$i]==$itype )
             {
@@ -528,8 +520,6 @@
 #  Write [ moleculetype ] and [ atoms ]
 #*********************************************************
 
-   my $ires;
-
    printf GTOP "[ moleculetype ]\n";
    printf GTOP "%-20s%-10s\n", ";name", "nrexcl";
    printf GTOP "%-20s%-10d\n", $options{"-name"}, 3;
@@ -539,41 +529,55 @@
    printf "\n";
 
 #  truncate the charge at predefined precision (10^-6)
+   my $prec = 1.0e-06;
    my $qtot = 0.0;
    my $qint = 0;
-   my $maxqid = 1;
-   for $i (1..$NATOM)
+   my $qmax = 0.0;
+   for my $i (1..$NATOM)
    {
       $CHARGE[$i] /= 18.2223; # change to electron charge unit
 #     truncate the charge at 10^-6 precision
-      if ( $CHARGE[$i] > 0.0 )
-      {
-         $CHARGE[$i] = int( $CHARGE[$i] * 10**6 + 0.5 ) / 10**6 ;
-      }
-      elsif ( $CHARGE[$i] < 0.0 )
-      {
-         $CHARGE[$i] = int( $CHARGE[$i] * 10**6 - 0.5 ) / 10**6 ;
-      }
+      $CHARGE[$i] = round_to_int($CHARGE[$i] / $prec) * $prec;
 #     calculate sum of charges
       $qtot += $CHARGE[$i];
-#     get the atom id with maximal charge
-      $maxqid = $i if ( abs($CHARGE[$i]) > abs($CHARGE[$maxqid]) );
+#     get maximum charge
+      $qmax = $CHARGE[$i] if ( abs($CHARGE[$i]) > $qmax );
+   }
+#  list all atoms with maximum charge
+   my @qmax_id_list = ();
+   for my $i (1..$NATOM)
+   {
+      if ( $CHARGE[$i] == $qmax )
+      {
+         push @qmax_id_list, $i;
+      }
    }
 #  remove non-integer charge due to truncated precision
    printf "The system has %f net charges.\n", $qtot;
-   if ( $qtot > 0.0 )
-   {
-      $qint = int( $qtot + 0.5 );
-   }
-   elsif ( $qtot < 0.0 )
-   {
-      $qint = int( $qtot - 0.5 );
-   }
+   $qint = round_to_int($qtot);
    if ( $qtot != $qint )
    {
-      $CHARGE[$maxqid] -= $qtot-$qint ;
-      printf "The charge of %f is removed from atom id %d.\n",
-         $qtot-$qint, $maxqid;
+      my $q_diff = round_to_int(($qtot - $qint) / $prec);
+      my $factor = $q_diff > 0 ? 1.0 : -1.0;
+      my $num_qmax = @qmax_id_list + 0;
+      my $ave_diff = int($q_diff / $num_qmax);
+      my $res_diff = $q_diff % $num_qmax;
+      for my $ii ( 0 .. $num_qmax-1 )
+      {
+         my $index = $qmax_id_list[$ii];
+         $CHARGE[$index] -= $ave_diff * $prec;
+         if ($ii < $res_diff)
+         {
+            $CHARGE[$index] -= $prec * $factor;
+            printf "The charge of %f is removed from atom id %d.\n",
+               ($ave_diff + $factor) * $prec, $index;
+         }
+         else
+         {
+            printf "The charge of %f is removed from atom id %d.\n",
+               $ave_diff * $prec, $index;
+         }
+      }
    }
    printf "\n";
 
@@ -582,10 +586,10 @@
    printf GTOP "%-6s%-6s%-6s%-6s%-6s%-6s%13s%13s ; qtot\n",
       ";nr", "type", "resnr", "res", "atom", "cgnr", "charge", "mass";
    $qtot = 0.0;
-   for $ires (1..$NRES)
+   for my $ires (1..$NRES)
    {
       printf GTOP ";residue %d, %s\n", $ires, $LBRES[$ires];
-      for $i ($IPRES[$ires]..$IPRES[$ires+1]-1)
+      for my $i ($IPRES[$ires]..$IPRES[$ires+1]-1)
       {
          $qtot += $CHARGE[$i];
          printf GTOP "%-6d%-6s%-6d%-6s%-6s%-6d%13.6f%13.6f ; qtot %f\n",
@@ -619,7 +623,7 @@
 
    printf GTOP "[ bonds ]\n";
    printf GTOP "%-8s%-8s%-8s%15s%15s\n", ";ai", "aj", "funct", "r", "k";
-   for $ibond (1..$NBONH)
+   for my $ibond (1..$NBONH)
    {
       printf GTOP "%-8d%-8d%-8d%15.6e%15.6e ; %s-%s\n",
          abs($IBH[$ibond])/3+1, 
@@ -630,7 +634,7 @@
          $IGRAPH[abs($IBH[$ibond])/3+1],
          $IGRAPH[abs($JBH[$ibond])/3+1];
    }
-   for $ibond (1..$NBONA)
+   for my $ibond (1..$NBONA)
    {
       printf GTOP "%-8d%-8d%-8d%15.6e%15.6e ; %s-%s\n",
          abs($IB[$ibond])/3+1,
@@ -667,7 +671,7 @@
       printf GTOP "%-6s%-6s%-6s%13s%13s%13s%15s%15s\n", 
          ";ai", "aj", "funct", "fudgeQQ", "qi", "qj", "sigma", "epsilon";
  
-      for $idih (1..$NPHIH)
+      for my $idih (1..$NPHIH)
       {
 #        skip when the third atom is negative
          if ( $KPH[$idih] > 0.0 )
@@ -682,7 +686,7 @@
          }
       }
  
-      for $idih (1..$NPHIA)
+      for my $idih (1..$NPHIA)
       {
 #        skip when the third atom is negative
          if ( $KP[$idih] > 0.0 )
@@ -706,7 +710,7 @@
       printf GTOP "[ pairs ]\n";
       printf GTOP "%-8s%-8s%-8s\n", ";ai", "aj", "funct";
  
-      for $idih (1..$NPHIH)
+      for my $idih (1..$NPHIH)
       {
 #        skip when the third atom is negative
          if ( $KPH[$idih] > 0.0 )
@@ -718,7 +722,7 @@
          }
       }
  
-      for $idih (1..$NPHIA)
+      for my $idih (1..$NPHIA)
       {
 #        skip when the third atom is negative
          if ( $KP[$idih] > 0.0 )
@@ -759,7 +763,7 @@
    printf GTOP "[ angles ]\n";
    printf GTOP "%-7s%-7s%-7s%-7s%15s%15s\n", 
       ";ai", "aj", "ak", "funct", "theta", "cth";
-   for $iang (1..$NTHETH)
+   for my $iang (1..$NTHETH)
    {
       printf GTOP "%-7d%-7d%-7d%-7d%15.6e%15.6e ; %s-%s-%s\n",
          abs($ITH[$iang])/3+1,
@@ -772,7 +776,7 @@
          $IGRAPH[abs($JTH[$iang])/3+1],
          $IGRAPH[abs($KTH[$iang])/3+1];
    }
-   for $iang (1..$NTHETA)
+   for my $iang (1..$NTHETA)
    {
       printf GTOP "%-7d%-7d%-7d%-7d%15.6e%15.6e ; %s-%s-%s\n",
          abs($IT[$iang])/3+1,
@@ -809,10 +813,9 @@
 #  E_Torsion = V_n/2 * [ 1 + cos( n phi - phase ) ]
 #  Note: The PK value is equal to V_n/2 in AMBER FF literature
 
-   my $ip;
    my ($p_s, $k_p, $p_n);
 
-   for $ip (1..$NPTRA)
+   for my $ip (1..$NPTRA)
    {
 #     convert kcal/mol to kJ/mol
       $PK[$ip] *= 4.184;
@@ -832,7 +835,7 @@
 
 #  dihedrals containing H atoms
 
-   for $idih (1..$NPHIH)
+   for my $idih (1..$NPHIH)
    {
 #     phase (phi_s), force constant (k_phi), and multiplicity
       $p_s = $PHASE[$ICPH[$idih]];
@@ -862,7 +865,7 @@
 
 #  dihedrals without H atoms
 
-   for $idih (1..$NPHIA)
+   for my $idih (1..$NPHIA)
    {
 #     phase (phi_s), force constant (k_phi), and multiplicity
       $p_s = $PHASE[$ICP[$idih]];
@@ -891,8 +894,6 @@
    }
 
    printf GTOP "\n";
-
-#  End of modification 2012-06-29
 
 #*********************************************************
 #  Write [ system ] and [ molecules ]
@@ -961,9 +962,9 @@
 #  write gmx gro file
 #  remember to convert angstrom to nm
    printf GGRO "%5d\n", $NATOM;
-   for $ires (1..$NRES)
+   for my $ires (1..$NRES)
    {
-      for $i ($IPRES[$ires]..$IPRES[$ires+1]-1)
+      for my $i ($IPRES[$ires]..$IPRES[$ires+1]-1)
       {
          printf GGRO "%5d%5s%5s%5d%9.4f%9.4f%9.4f\n",
             $ires, $LBRES[$ires], $IGRAPH[$i], $i, 
@@ -1003,6 +1004,26 @@
          $string = substr $string, $width;
       }
       return @array;
+   }
+
+#*********************************************************
+#  function: round to integer
+#*********************************************************
+
+   sub round_to_int
+   {
+      die unless @_ == 1;
+      my $num = $_[0];
+      my $rounded = $num;
+      if ( $num > 0.0 )
+      {
+         $rounded = int( $num + 0.5 );
+      }
+      elsif ( $num < 0.0 )
+      {
+         $rounded = int( $num - 0.5 );
+      }
+      return $rounded;
    }
 
 #*********************************************************
