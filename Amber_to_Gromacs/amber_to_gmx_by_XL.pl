@@ -555,7 +555,7 @@
 #  remove non-integer charge due to truncated precision
    printf "The system has %f net charges.\n", $qtot;
    $qint = round_to_int($qtot);
-   if ( $qtot != $qint )
+   if ( abs($qtot-$qint) >= $prec )
    {
       my $q_diff = round_to_int(($qtot - $qint) / $prec);
       my $factor = $q_diff > 0 ? 1.0 : -1.0;
